@@ -1,0 +1,10 @@
+{
+  "projectName": "",
+  "remoteRootFolder": "",
+  "files": [],
+  "connection": {
+    "host": "localhost",
+    "username": "sammy",
+    "port": 22
+  }
+}

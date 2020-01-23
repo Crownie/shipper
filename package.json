@@ -1,0 +1,41 @@
+{
+  "name": "@crownie/shipper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/bin/index.js",
+  "bin": {
+    "shipper": "dist/bin/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/bin/index.ts deploy",
+    "prettier": "prettier --write \"*(src|tests)/**/*.*(ts|tsx)\"",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "boxen": "^4.2.0",
+    "chalk": "^3.0.0",
+    "fs-extra": "^8.1.0",
+    "glob": "^7.1.6",
+    "node-ssh": "^7.0.0",
+    "rsync": "^0.6.1",
+    "typescript": "^3.7.5",
+    "yargs": "^15.1.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^8.0.1",
+    "@types/jest": "^24.9.0",
+    "@types/node": "^13.1.8",
+    "@types/rsync": "^0.4.30",
+    "@types/yargs": "^15.0.1",
+    "husky": "^4.2.1",
+    "jest": "^25.1.0",
+    "prettier": "1.19.1",
+    "pretty-quick": "^2.0.1",
+    "ts-jest": "^24.3.0",
+    "ts-node": "^8.6.2"
+  }
+}
