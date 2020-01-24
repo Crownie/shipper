@@ -40,15 +40,12 @@ export default class Shipper {
   }
 
   init() {
-    console.log(this.configPath);
     const data = JSON.stringify(Shipper.getDefaultConfig(), null, 2);
     try {
       fs.writeFileSync(this.configFile, data, {flag: 'wx'});
+      console.log('created file shipper.json');
     } catch (e) {
-      if (e) {
-      } else {
-        console.log('created file shipper.json');
-      }
+      console.log('shipper.json already exists');
     }
   }
 
