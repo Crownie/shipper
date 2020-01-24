@@ -2,7 +2,8 @@ import fs from 'fs-extra';
 import {copyFolderRecursive} from './utils/copy';
 import NodeSsh from 'node-ssh';
 import Rsync from 'rsync';
-import {rsyncExecutePromise} from './utils/promise-utils';
+import {delay, rsyncExecutePromise} from './utils/promise-utils';
+import ora from 'ora';
 
 const ssh = new NodeSsh();
 
@@ -50,12 +51,29 @@ export default class Shipper {
   }
 
   async deploy() {
-    console.log(this.configPath);
+    this.validateConfig();
     await this.copyToTmp();
     await this.uploadTmp();
   }
 
+  private validateConfig() {
+    if (!this.config) {
+      throw new Error('Config is required');
+    }
+    if (!this.config.connection) {
+      throw new Error('config.connection is required');
+    }
+    if (!this.config.connection.host) {
+      throw new Error('config.connection.host is required');
+    }
+    if (!this.config.connection.username) {
+      throw new Error('config.connection.username is required');
+    }
+  }
+
   private async uploadTmp() {
+    const spinner = ora('Connecting to server via ssh').start();
+
     // connect to ssh
     await ssh.connect(this.config.connection);
     await ssh.execCommand(
@@ -64,6 +82,7 @@ export default class Shipper {
     );
 
     // upload contents of .tmp
+    spinner.text = 'Uploading files and folders';
     const rsync = new Rsync()
       .shell('ssh')
       .flags('avz')
@@ -76,6 +95,7 @@ export default class Shipper {
     const removeOldCmd = `rm -rf ${this.remoteOldFolder}`;
     const backupCmd = `mv ${this.remoteFolder} ${this.remoteOldFolder}`;
     const installCmd = `mv ${this.remoteTmpFolder} ${this.remoteFolder}`;
+    const cdInstallationDir = `cd ${this.remoteFolder}`;
 
     // remove previous backup
     await ssh.execCommand(removeOldCmd, {
@@ -92,8 +112,26 @@ export default class Shipper {
       cwd: this.config.remoteRootFolder,
     });
 
+    // run post deploy command
+    if (this.config.postDeployCmd) {
+      spinner.text = `Running post deploy commands: ${this.config.postDeployCmd}`;
+      await delay(1000);
+      const {stdout, stderr} = await ssh.execCommand(
+        `${cdInstallationDir} && ${this.config.postDeployCmd}`,
+        {
+          cwd: this.config.remoteRootFolder,
+        },
+      );
+      console.log('\x1b[34m%s\x1b[0m', stdout);
+      console.log('\x1b[31m%s\x1b[0m', stderr);
+    }
+
+    await Shipper.removeFolder(this.tmpFolder);
+
     // close connection
     ssh.dispose();
+
+    console.log(' ✅  Deployed Successfully! 🎉');
   }
 
   /**
@@ -111,7 +149,7 @@ export default class Shipper {
             this.tmpFolder,
           );
         } catch (e) {
-          console.log('cannot copy to ' + this.tmpFolder, e);
+          throw e;
         }
       }
     }
@@ -164,4 +202,5 @@ export interface ShipperConfig {
     password?: string;
     passphrase?: string; // the passphrase used for decrypting the private key
   };
+  postDeployCmd?: string;
 }
