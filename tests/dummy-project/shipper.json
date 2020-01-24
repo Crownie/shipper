@@ -1,10 +1,11 @@
 {
-  "projectName": "",
-  "remoteRootFolder": "",
-  "files": [],
+  "projectName": "dummy-project",
+  "remoteRootFolder": "/home/crownie/apps/dummy",
+  "files": [".dist", "dummy2.js"],
   "connection": {
-    "host": "localhost",
-    "username": "sammy",
-    "port": 22
-  }
+    "username": "crownie",
+    "host": "178.62.86.41",
+    "privateKey": "/Users/tobi/.ssh/id_rsa"
+  },
+  "postDeployCmd": "tree"
 }

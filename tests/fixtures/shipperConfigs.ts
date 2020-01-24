@@ -10,4 +10,5 @@ export const dummyShipperConfig1: ShipperConfig = {
     host: '178.62.86.41',
     privateKey: '/Users/tobi/.ssh/id_rsa',
   },
+  postDeployCmd: 'tree',
 };
