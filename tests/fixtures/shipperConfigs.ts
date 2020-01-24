@@ -6,9 +6,9 @@ export const dummyShipperConfig1: ShipperConfig = {
   projectName: 'dummy-project',
   files: ['.dist', 'dummy2.js'],
   connection: {
-    username: 'crownie',
-    host: '178.62.86.41',
-    privateKey: '/Users/tobi/.ssh/id_rsa',
+    username: 'tester',
+    host: 'localhost',
+    privateKey: '/Users/tester/.ssh/id_rsa',
   },
   postDeployCmd: 'tree',
 };
