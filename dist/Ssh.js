@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 'use strict';
 var __awaiter =
   (this && this.__awaiter) ||
@@ -139,46 +138,39 @@ var __importDefault =
     return mod && mod.__esModule ? mod : {default: mod};
   };
 Object.defineProperty(exports, '__esModule', {value: true});
-var Shipper_1 = __importDefault(require('../Shipper'));
-var chalk = require('chalk');
-var boxen = require('boxen');
-var yargs = require('yargs');
-var shipper = new Shipper_1.default();
-var argv = yargs
-  .demandCommand(1)
-  .usage('Usage: $0 <command> [options]')
-  .command('init', 'initialize shipper in this project', function(argv) {
-    console.log('shipper initialized');
-    shipper.init();
-    process.exit();
-  })
-  .command('deploy', '', function() {
-    return __awaiter(void 0, void 0, void 0, function() {
+var node_ssh_1 = __importDefault(require('node-ssh'));
+var Ssh = /** @class */ (function() {
+  function Ssh() {
+    this.nodeSsh = new node_ssh_1.default();
+  }
+  Ssh.prototype.connect = function(connectionParams) {
+    return __awaiter(this, void 0, void 0, function() {
       return __generator(this, function(_a) {
         switch (_a.label) {
           case 0:
-            return [4 /*yield*/, shipper.deploy()];
+            return [4 /*yield*/, this.nodeSsh.connect(connectionParams)];
           case 1:
             _a.sent();
-            process.exit();
-            return [2 /*return*/];
+            return [2 /*return*/, this];
         }
       });
     });
-  }).argv;
-// const options = yargs
-//     .usage('Usage: -n <name>')
-//     .option('n', {alias: 'name', describe: 'Your name', type: 'string', demandOption: true})
-//     .argv;
-/*const greeting = chalk.white.bold(`Hello, ${options.name}!`);
-
-const boxenOptions = {
-    padding: 1,
-    margin: 1,
-    borderStyle: 'round',
-    borderColor: 'green',
-    backgroundColor: '#555555',
-};
-const msgBox = boxen(greeting, boxenOptions);
-
-console.log(msgBox);*/
+  };
+  Ssh.prototype.execCommand = function(command, opts) {
+    return __awaiter(this, void 0, void 0, function() {
+      return __generator(this, function(_a) {
+        switch (_a.label) {
+          case 0:
+            return [4 /*yield*/, this.nodeSsh.execCommand(command, opts)];
+          case 1:
+            return [2 /*return*/, _a.sent()];
+        }
+      });
+    });
+  };
+  Ssh.prototype.dispose = function() {
+    this.nodeSsh.dispose();
+  };
+  return Ssh;
+})();
+exports.default = Ssh;
