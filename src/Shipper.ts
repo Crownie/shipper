@@ -1,11 +1,9 @@
 import fs from 'fs-extra';
 import {copyFolderRecursive} from './utils/copy';
-import NodeSsh from 'node-ssh';
 import Rsync from 'rsync';
 import {delay, rsyncExecutePromise} from './utils/promise-utils';
 import ora from 'ora';
-
-const ssh = new NodeSsh();
+import Ssh from './Ssh';
 
 export default class Shipper {
   private config: ShipperConfig = Shipper.getDefaultConfig();
@@ -32,7 +30,10 @@ export default class Shipper {
     return `${username}@${host}:${this.remoteTmpFolder}`;
   }
 
-  constructor(private configPath: string = process.cwd()) {
+  constructor(
+    private configPath: string = process.cwd(),
+    private ssh: Ssh = new Ssh(),
+  ) {
     this.configFile = configPath + '/shipper.json';
     this.loadConfig();
   }
@@ -75,8 +76,8 @@ export default class Shipper {
     const spinner = ora('Connecting to server via ssh').start();
 
     // connect to ssh
-    await ssh.connect(this.config.connection);
-    await ssh.execCommand(
+    await this.ssh.connect(this.config.connection);
+    await this.ssh.execCommand(
       `rm -rf ${this.remoteTmpFolder} && mkdir -p ${this.remoteTmpFolder}`,
       {cwd: this.config.remoteRootFolder},
     );
@@ -98,17 +99,17 @@ export default class Shipper {
     const cdInstallationDir = `cd ${this.remoteFolder}`;
 
     // remove previous backup
-    await ssh.execCommand(removeOldCmd, {
+    await this.ssh.execCommand(removeOldCmd, {
       cwd: this.config.remoteRootFolder,
     });
 
     // create new backup
-    await ssh.execCommand(backupCmd, {
+    await this.ssh.execCommand(backupCmd, {
       cwd: this.config.remoteRootFolder,
     });
 
     // install new
-    await ssh.execCommand(installCmd, {
+    await this.ssh.execCommand(installCmd, {
       cwd: this.config.remoteRootFolder,
     });
 
@@ -116,7 +117,7 @@ export default class Shipper {
     if (this.config.postDeployCmd) {
       spinner.text = `Running post deploy commands: ${this.config.postDeployCmd}`;
       await delay(1000);
-      const {stdout, stderr} = await ssh.execCommand(
+      const {stdout, stderr} = await this.ssh.execCommand(
         `${cdInstallationDir} && ${this.config.postDeployCmd}`,
         {
           cwd: this.config.remoteRootFolder,
@@ -129,7 +130,7 @@ export default class Shipper {
     await Shipper.removeFolder(this.tmpFolder);
 
     // close connection
-    ssh.dispose();
+    this.ssh.dispose();
 
     console.log(' ✅  Deployed Successfully! 🎉');
   }
