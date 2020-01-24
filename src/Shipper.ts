@@ -3,7 +3,7 @@ import {copyFolderRecursive} from './utils/copy';
 import {delay} from './utils/promise-utils';
 import ora from 'ora';
 import Ssh from './Ssh';
-import Rsync from './Rsync';
+import RsyncHelper from './RsyncHelper';
 
 export default class Shipper {
   private config: ShipperConfig = Shipper.getDefaultConfig();
@@ -33,7 +33,7 @@ export default class Shipper {
   constructor(
     private configPath: string = process.cwd(),
     private ssh: Ssh = new Ssh(),
-    private rsyncClass = Rsync,
+    private rsyncHelper: RsyncHelper = new RsyncHelper(),
   ) {
     this.configFile = configPath + '/shipper.json';
     this.loadConfig();
@@ -85,8 +85,8 @@ export default class Shipper {
 
     // upload contents of .tmp
     spinner.text = 'Uploading files and folders';
-    this.rsyncClass
-      .new()
+    this.rsyncHelper
+      .start()
       .shell('ssh')
       .flags('avz')
       .source(this.tmpFolder + '/')
