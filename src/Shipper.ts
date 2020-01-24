@@ -82,7 +82,7 @@ export default class Shipper {
 
     // upload contents of .tmp
     spinner.text = 'Uploading files and folders';
-    this.rsyncHelper
+    await this.rsyncHelper
       .start()
       .shell('ssh')
       .flags('avz')
@@ -98,24 +98,29 @@ export default class Shipper {
     const cdInstallationDir = `cd ${this.remoteFolder}`;
 
     // remove previous backup
+    console.log('\n', removeOldCmd);
     await this.ssh.execCommand(removeOldCmd, {
       cwd: this.config.remoteRootFolder,
     });
 
     // create new backup
+    console.log('\n', backupCmd);
     await this.ssh.execCommand(backupCmd, {
       cwd: this.config.remoteRootFolder,
     });
 
     // install new
+    console.log('\n', installCmd);
     await this.ssh.execCommand(installCmd, {
       cwd: this.config.remoteRootFolder,
     });
 
     // run post deploy command
     if (this.config.postDeployCmd) {
-      spinner.text = `Running post deploy commands: ${this.config.postDeployCmd}`;
+      spinner.text = `Running post deploy commands:`;
       await delay(1000);
+      spinner.stop();
+      console.log('\n', this.config.postDeployCmd);
       const {stdout, stderr} = await this.ssh.execCommand(
         `${cdInstallationDir} && ${this.config.postDeployCmd}`,
         {
@@ -131,7 +136,7 @@ export default class Shipper {
     // close connection
     this.ssh.dispose();
 
-    console.log(' ✅  Deployed Successfully! 🎉');
+    console.log('\n ✅  Deployed Successfully! 🎉');
   }
 
   /**
@@ -184,6 +189,7 @@ export default class Shipper {
         host: 'localhost',
         username: 'sammy',
         port: 22,
+        privateKey: '~/.ssh/id_rsa',
       },
     };
   }

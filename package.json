@@ -7,14 +7,14 @@
     "shipper": "dist/bin/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist/ && tsc",
     "dev": "ts-node src/bin/index.ts deploy",
     "prettier": "prettier --write \"*(src|tests)/**/*.*(ts|tsx)\"",
     "test": "jest"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "crownie",
+  "license": "MIT",
   "dependencies": {
     "boxen": "^4.2.0",
     "chalk": "^3.0.0",
@@ -38,5 +38,16 @@
     "pretty-quick": "^2.0.1",
     "ts-jest": "^24.3.0",
     "ts-node": "^8.6.2"
-  }
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Crownie/shipper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Crownie/shipper/issues"
+  },
+  "homepage": "https://github.com/Crownie/shipper#readme"
 }

@@ -8,7 +8,7 @@ export default class Rsync {
   }
 
   shell(shell: string) {
-    this.rsyncStatic.shell('ssh');
+    this.rsyncStatic.shell(shell);
     return this;
   }
 
@@ -33,6 +33,7 @@ export default class Rsync {
   }
 
   execute() {
+    console.log('\n' + this.rsyncStatic.command());
     return new Promise((resolve, reject) => {
       this.rsyncStatic.execute(function(error, code, cmd) {
         if (error) {
