@@ -13,9 +13,11 @@ const {argv} = yargs
   .command('init', 'initialize shipper in this project', (argv) => {
     console.log(`shipper initialized`);
     shipper.init();
+    process.exit();
   })
-  .command('deploy', '', () => {
-    shipper.deploy();
+  .command('deploy', '', async () => {
+    await shipper.deploy();
+    process.exit();
   });
 
 // const options = yargs
