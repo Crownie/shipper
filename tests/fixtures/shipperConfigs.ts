@@ -10,5 +10,5 @@ export const dummyShipperConfig1: ShipperConfig = {
     host: 'localhost',
     privateKey: '/Users/tester/.ssh/id_rsa',
   },
-  postDeployCmd: 'tree',
+  postDeployCmd: 'ls -al',
 };
