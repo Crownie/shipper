@@ -9,3 +9,9 @@ export const rsyncExecutePromise = (rsync) => {
     });
   });
 };
+
+export const delay = (duration): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, duration);
+  });
+};
