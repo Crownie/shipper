@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`init initialise fresh project 1`] = `
+Object {
+  "connection": Object {
+    "host": "localhost",
+    "port": 22,
+    "privateKey": "~/.ssh/id_rsa",
+    "username": "sammy",
+  },
+  "files": Array [],
+  "projectName": "",
+  "remoteRootFolder": "",
+}
+`;
