@@ -5,7 +5,7 @@ import Ssh, {
 } from '../../src/Ssh';
 import {exec} from 'child_process';
 
-export class TestSsh extends Ssh {
+export class MockSsh extends Ssh {
   async connect(connectionParams: ConnectionParams): Promise<this> {
     const credentials = {
       host: 'localhost',

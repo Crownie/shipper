@@ -1,11 +1,11 @@
 import Shipper from '../src/Shipper';
 import fs from 'fs-extra';
 import {dummyShipperConfig1} from './fixtures/shipperConfigs';
-import {TestSsh} from './fixtures/TestSsh.fixture';
+import {MockSsh} from './mocks/MockSsh';
 
 const dummyProjectPath = __dirname + '/dummy-project';
 const shipperJson = dummyProjectPath + '/shipper.json';
-const shipper = new Shipper(dummyProjectPath, new TestSsh());
+const shipper = new Shipper(dummyProjectPath, new MockSsh());
 
 const createShipperJsonFile = (data = dummyShipperConfig1) => {
   try {
