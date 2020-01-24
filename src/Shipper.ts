@@ -1,9 +1,9 @@
 import fs from 'fs-extra';
 import {copyFolderRecursive} from './utils/copy';
-import Rsync from 'rsync';
-import {delay, rsyncExecutePromise} from './utils/promise-utils';
+import {delay} from './utils/promise-utils';
 import ora from 'ora';
 import Ssh from './Ssh';
+import Rsync from './Rsync';
 
 export default class Shipper {
   private config: ShipperConfig = Shipper.getDefaultConfig();
@@ -33,6 +33,7 @@ export default class Shipper {
   constructor(
     private configPath: string = process.cwd(),
     private ssh: Ssh = new Ssh(),
+    private rsyncClass = Rsync,
   ) {
     this.configFile = configPath + '/shipper.json';
     this.loadConfig();
@@ -84,13 +85,14 @@ export default class Shipper {
 
     // upload contents of .tmp
     spinner.text = 'Uploading files and folders';
-    const rsync = new Rsync()
+    this.rsyncClass
+      .new()
       .shell('ssh')
       .flags('avz')
       .source(this.tmpFolder + '/')
       .destination(this.sshDestination + '/')
-      .set('e', `ssh -i ${this.config.connection.privateKey}`);
-    await rsyncExecutePromise(rsync);
+      .set('e', `ssh -i ${this.config.connection.privateKey}`)
+      .execute();
 
     // commands
     const removeOldCmd = `rm -rf ${this.remoteOldFolder}`;
