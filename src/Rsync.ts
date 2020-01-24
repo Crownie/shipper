@@ -1,9 +1,9 @@
 import RsyncStatic from 'rsync';
 
 export default class Rsync {
-  private rsyncStatic: any;
+  protected rsyncStatic: any;
 
-  private constructor() {
+  public constructor() {
     this.rsyncStatic = new RsyncStatic();
   }
 
@@ -12,8 +12,8 @@ export default class Rsync {
     return this;
   }
 
-  flags(shell: string) {
-    this.rsyncStatic.flags('ssh');
+  flags(flags: string) {
+    this.rsyncStatic.flags(flags);
     return this;
   }
 
@@ -42,9 +42,5 @@ export default class Rsync {
         }
       });
     });
-  }
-
-  static new(): Rsync {
-    return new Rsync();
   }
 }
