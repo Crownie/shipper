@@ -138,7 +138,6 @@ export default class Shipper {
    * copy specified files in @code{this.config} to .tmp folder
    */
   private async copyToTmp() {
-    console.log(this.config);
     if (this.config) {
       await Shipper.removeFolder(this.tmpFolder);
       fs.mkdirSync(this.tmpFolder);
