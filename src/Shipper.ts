@@ -4,6 +4,7 @@ import {delay} from './utils/promise-utils';
 import ora from 'ora';
 import Ssh from './Ssh';
 import RsyncHelper from './RsyncHelper';
+import {zipDirectory} from './utils/zip-utils';
 
 export default class Shipper {
   private config: ShipperConfig = Shipper.getDefaultConfig();
@@ -11,6 +12,10 @@ export default class Shipper {
 
   private get tmpFolder() {
     return `${this.configPath}/.tmp`;
+  }
+
+  private get tmpZipFile() {
+    return `${this.configPath}/.tmp.zip`;
   }
 
   private get remoteFolder() {
@@ -52,6 +57,7 @@ export default class Shipper {
   async deploy() {
     this.validateConfig();
     await this.copyToTmp();
+    await zipDirectory(this.tmpFolder, this.tmpZipFile);
     await this.uploadTmp();
   }
 
