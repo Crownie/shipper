@@ -1,0 +1,7 @@
+{
+  "projectName": "dummy-project",
+  "token": "hfpha80hk1osgn5nxy8t4o",
+  "host": "http://localhost",
+  "files": [".dist", "dummy2.js"],
+  "postDeployCmd": "ls -al"
+}

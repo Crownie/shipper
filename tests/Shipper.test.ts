@@ -1,16 +1,12 @@
 import Shipper from '../src/Shipper';
 import fs from 'fs-extra';
 import {dummyShipperConfig1} from './fixtures/shipperConfigs';
-import {MockSsh} from './mocks/MockSsh';
-import MockRsyncHelper from './mocks/MockRsyncHelper';
+import ShipperFixture from './fixtures/ShipperFixture';
+import nock from 'nock';
 
 const dummyProjectPath = __dirname + '/dummy-project';
 const shipperJson = dummyProjectPath + '/shipper.json';
-const shipper = new Shipper(
-  dummyProjectPath,
-  new MockSsh(),
-  new MockRsyncHelper(),
-);
+const shipper = new Shipper(dummyProjectPath);
 
 const createShipperJsonFile = (data = dummyShipperConfig1) => {
   try {
@@ -20,17 +16,17 @@ const createShipperJsonFile = (data = dummyShipperConfig1) => {
   shipper.loadConfig();
 };
 
-const clearSshFolder = () => {
+const clearServerFolder = () => {
   try {
-    fs.removeSync(__dirname + '/__ssh__');
+    fs.removeSync(__dirname + '/__server-dir-mock__');
   } catch (e) {}
   try {
-    fs.mkdirSync(__dirname + '/__ssh__');
+    fs.mkdirSync(__dirname + '/__server-dir-mock__');
   } catch (e) {}
 };
 
 beforeEach(() => {
-  clearSshFolder();
+  clearServerFolder();
 });
 
 describe('init', () => {
@@ -46,14 +42,15 @@ describe('init', () => {
 });
 
 describe('deploy', () => {
+  beforeAll(() => {
+    const scope = nock('http://localhost')
+      .post('/upload/dummy-project')
+      .reply(200, {});
+  });
+
   it('deploy', async () => {
-    createShipperJsonFile();
+    const {token} = ShipperFixture.createDummyProject();
+    createShipperJsonFile({...dummyShipperConfig1, token});
     await shipper.deploy();
-    expect(
-      fs.existsSync(__dirname + '/__ssh__/dummy-project/dummy2.js'),
-    ).toBeTruthy();
-    expect(
-      fs.existsSync(__dirname + '/__ssh__/dummy-project/.dist/dummy.js'),
-    ).toBeTruthy();
   });
 });

@@ -1,8 +1,5 @@
 import fs from 'fs-extra';
 import {copyFolderRecursive} from './utils/copy';
-import ora from 'ora';
-import Ssh from './Ssh';
-import RsyncHelper from './RsyncHelper';
 import {zipDirectory} from './utils/zip-utils';
 import axios from 'axios';
 import FormData from 'form-data';
@@ -19,11 +16,7 @@ export default class Shipper {
     return `${this.configPath}/.tmp.zip`;
   }
 
-  constructor(
-    private configPath: string = process.cwd(),
-    private ssh: Ssh = new Ssh(),
-    private rsyncHelper: RsyncHelper = new RsyncHelper(),
-  ) {
+  constructor(private configPath: string = process.cwd()) {
     this.configFile = configPath + '/shipper.json';
     this.loadConfig();
   }
@@ -43,6 +36,7 @@ export default class Shipper {
     await this.copyToTmp();
     await zipDirectory(this.tmpFolder, this.tmpZipFile);
     await this.uploadTmp();
+    await this.removeZip();
   }
 
   private validateConfig() {
@@ -63,6 +57,7 @@ export default class Shipper {
     const formData = new FormData();
     formData.append('file', file);
     const url = `${this.config.host}/upload/${this.config.projectName}`;
+    console.log('url', url);
     await axios.post(url, formData, {
       headers: {
         Authorization: this.config.token,
@@ -107,6 +102,14 @@ export default class Shipper {
   private static async removeFolder(folder) {
     try {
       await fs.remove(folder);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  private async removeZip() {
+    try {
+      await fs.unlinkSync(this.tmpZipFile);
     } catch (err) {
       console.error(err);
     }

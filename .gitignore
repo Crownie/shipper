@@ -1,5 +1,4 @@
 .idea
 node_modules
 .tmp
-tests/dummy-project
 tests/__server-dir-mock__
