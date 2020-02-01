@@ -1,39 +1,58 @@
 #!/usr/bin/env node
 
-import Shipper from '../Shipper';
+import CmdHandlers from '../CmdHandlers';
 
-const chalk = require('chalk');
-const boxen = require('boxen');
 const yargs = require('yargs');
 
-const shipper = new Shipper();
 const {argv} = yargs
   .demandCommand(1)
   .usage('Usage: $0 <command> [options]')
-  .command('init', 'initialize shipper in this project', (argv) => {
-    console.log(`shipper initialized`);
-    shipper.init();
-    process.exit();
-  })
-  .command('deploy', '', async () => {
-    await shipper.deploy();
-    process.exit();
-  });
+  .command('init', 'initialize shipper in this project', CmdHandlers.init)
 
-// const options = yargs
-//     .usage('Usage: -n <name>')
-//     .option('n', {alias: 'name', describe: 'Your name', type: 'string', demandOption: true})
-//     .argv;
+  .command('deploy', '', () => {}, CmdHandlers.deploy)
 
-/*const greeting = chalk.white.bold(`Hello, ${options.name}!`);
+  .command(
+    'create',
+    'create a new project. only run this in the server',
+    () => {},
+    CmdHandlers.create,
+  )
 
-const boxenOptions = {
-    padding: 1,
-    margin: 1,
-    borderStyle: 'round',
-    borderColor: 'green',
-    backgroundColor: '#555555',
-};
-const msgBox = boxen(greeting, boxenOptions);
+  .command('list', 'List projects', () => {}, CmdHandlers.list)
 
-console.log(msgBox);*/
+  .command(
+    'delete <name>',
+    'Delete project by name',
+    (yargs) => {
+      yargs.positional('name', {
+        describe: 'Project name',
+        type: 'string',
+      });
+    },
+    CmdHandlers.delete,
+  )
+
+  .command(
+    'show <name>',
+    'Show project details',
+    (yargs) => {
+      yargs.positional('name', {
+        describe: 'Project name',
+        type: 'string',
+      });
+    },
+    CmdHandlers.show,
+  )
+
+  .command(
+    'start [port]',
+    'start server',
+    (yargs) => {
+      yargs.positional('port', {
+        describe: 'port',
+        type: 'string',
+        default: 3001,
+      });
+    },
+    CmdHandlers.start,
+  );

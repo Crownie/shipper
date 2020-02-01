@@ -1,0 +1,9 @@
+{
+  "projects": [
+    {
+      "name": "project-1",
+      "path": "/Users/crownie/apps/crownie-website",
+      "token": "project-1-token"
+    }
+  ]
+}

@@ -1,10 +1,11 @@
 import fs from 'fs-extra';
 import {copyFolderRecursive} from './utils/copy';
-import {delay} from './utils/promise-utils';
 import ora from 'ora';
 import Ssh from './Ssh';
 import RsyncHelper from './RsyncHelper';
 import {zipDirectory} from './utils/zip-utils';
+import axios from 'axios';
+import FormData from 'form-data';
 
 export default class Shipper {
   private config: ShipperConfig = Shipper.getDefaultConfig();
@@ -16,23 +17,6 @@ export default class Shipper {
 
   private get tmpZipFile() {
     return `${this.configPath}/.tmp.zip`;
-  }
-
-  private get remoteFolder() {
-    return `${this.config.remoteRootFolder}/${this.config.projectName}`;
-  }
-
-  private get remoteTmpFolder() {
-    return `${this.remoteFolder}_tmp`;
-  }
-
-  private get remoteOldFolder() {
-    return `${this.remoteFolder}_old`;
-  }
-
-  private get sshDestination() {
-    const {username, host} = this.config.connection;
-    return `${username}@${host}:${this.remoteTmpFolder}`;
   }
 
   constructor(
@@ -65,82 +49,34 @@ export default class Shipper {
     if (!this.config) {
       throw new Error('Config is required');
     }
-    if (!this.config.connection) {
-      throw new Error('config.connection is required');
+    if (!this.config.token) {
+      throw new Error('config.token is required');
     }
-    if (!this.config.connection.host) {
-      throw new Error('config.connection.host is required');
-    }
-    if (!this.config.connection.username) {
-      throw new Error('config.connection.username is required');
+    if (!this.config.projectName) {
+      throw new Error('config.projectName is required');
     }
   }
 
   private async uploadTmp() {
-    const spinner = ora('Connecting to server via ssh').start();
-
-    // connect to ssh
-    await this.ssh.connect(this.config.connection);
-    await this.ssh.execCommand(
-      `rm -rf ${this.remoteTmpFolder} && mkdir -p ${this.remoteTmpFolder}`,
-      {cwd: this.config.remoteRootFolder},
-    );
-
-    // upload contents of .tmp
-    spinner.text = 'Uploading files and folders';
-    await this.rsyncHelper
-      .start()
-      .shell('ssh')
-      .flags('avz')
-      .source(this.tmpFolder + '/')
-      .destination(this.sshDestination + '/')
-      .set('e', `ssh -i ${this.config.connection.privateKey}`)
-      .execute();
-
-    // commands
-    const removeOldCmd = `rm -rf ${this.remoteOldFolder}`;
-    const backupCmd = `mv ${this.remoteFolder} ${this.remoteOldFolder}`;
-    const installCmd = `mv ${this.remoteTmpFolder} ${this.remoteFolder}`;
-    const cdInstallationDir = `cd ${this.remoteFolder}`;
-
-    // remove previous backup
-    console.log('\n', removeOldCmd);
-    await this.ssh.execCommand(removeOldCmd, {
-      cwd: this.config.remoteRootFolder,
+    // const spinner = ora('Uploading...').start();
+    const file = fs.createReadStream(this.tmpZipFile);
+    const formData = new FormData();
+    formData.append('file', file);
+    const url = `${this.config.host}/upload/${this.config.projectName}`;
+    await axios.post(url, formData, {
+      headers: {
+        Authorization: this.config.token,
+        ...formData.getHeaders(),
+      },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total,
+        );
+        console.log(percentCompleted);
+      },
     });
-
-    // create new backup
-    console.log('\n', backupCmd);
-    await this.ssh.execCommand(backupCmd, {
-      cwd: this.config.remoteRootFolder,
-    });
-
-    // install new
-    console.log('\n', installCmd);
-    await this.ssh.execCommand(installCmd, {
-      cwd: this.config.remoteRootFolder,
-    });
-
-    // run post deploy command
-    if (this.config.postDeployCmd) {
-      spinner.text = `Running post deploy commands:`;
-      await delay(1000);
-      spinner.stop();
-      console.log('\n', this.config.postDeployCmd);
-      const {stdout, stderr} = await this.ssh.execCommand(
-        `${cdInstallationDir} && ${this.config.postDeployCmd}`,
-        {
-          cwd: this.config.remoteRootFolder,
-        },
-      );
-      console.log('\x1b[34m%s\x1b[0m', stdout);
-      console.log('\x1b[31m%s\x1b[0m', stderr);
-    }
-
+    //spinner.stop();
     await Shipper.removeFolder(this.tmpFolder);
-
-    // close connection
-    this.ssh.dispose();
 
     console.log('\n ✅  Deployed Successfully! 🎉');
   }
@@ -152,6 +88,9 @@ export default class Shipper {
     if (this.config) {
       await Shipper.removeFolder(this.tmpFolder);
       fs.mkdirSync(this.tmpFolder);
+      if (this.config.files.length === 0) {
+        throw new Error('no files or folders specified. See shipper.json');
+      }
       for (const path of this.config.files) {
         try {
           await copyFolderRecursive(
@@ -189,29 +128,18 @@ export default class Shipper {
   public static getDefaultConfig(): ShipperConfig {
     return {
       projectName: '',
-      remoteRootFolder: '',
+      token: '',
+      host: '',
       files: [],
-      connection: {
-        host: 'localhost',
-        username: 'sammy',
-        port: 22,
-        privateKey: '~/.ssh/id_rsa',
-      },
+      postDeployCmd: '',
     };
   }
 }
 
 export interface ShipperConfig {
   projectName: string;
-  remoteRootFolder: string;
+  token: string;
+  host: string;
   files: string[];
-  connection: {
-    host: string;
-    username: string;
-    privateKey?: string;
-    port?: number;
-    password?: string;
-    passphrase?: string; // the passphrase used for decrypting the private key
-  };
   postDeployCmd?: string;
 }

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import archiver from 'archiver';
+import unzipper from 'unzipper';
 
 /**
  * @param {String} source folder path
@@ -19,4 +20,11 @@ export function zipDirectory(source, destination) {
     stream.on('close', () => resolve());
     archive.finalize().then();
   });
+}
+
+export async function unzipFile(filePath, destination): Promise<void> {
+  return fs
+    .createReadStream(filePath)
+    .pipe(unzipper.Extract({path: destination, concurrency: 1}))
+    .promise();
 }

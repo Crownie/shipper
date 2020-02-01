@@ -2,4 +2,4 @@
 node_modules
 .tmp
 tests/dummy-project
-tests/__ssh__
+tests/__server-dir-mock__
