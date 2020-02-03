@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import {dummyShipperServerConfig} from './dummyShipperServerConfig';
 import {SERVER_DIR_MOCK} from '../test-constants';
 
+const configFile = SERVER_DIR_MOCK + '/shipper-server.json';
 export default class ShipperServerFixture {
   public static getUploadFile() {
     const file = fs.createReadStream(__dirname + '/dummy.zip');
@@ -10,13 +11,16 @@ export default class ShipperServerFixture {
   }
 
   public static createTestConfig() {
-    const configFile = SERVER_DIR_MOCK + '/shipper-server.json';
-    try {
-      fs.unlinkSync(configFile);
-    } catch (e) {}
+    ShipperServerFixture.removeConfig();
     fs.writeFileSync(
       configFile,
       JSON.stringify(dummyShipperServerConfig, null, 2),
     );
+  }
+
+  static removeConfig() {
+    try {
+      fs.unlinkSync(configFile);
+    } catch (e) {}
   }
 }

@@ -18,17 +18,24 @@ describe('ping', () => {
 describe('upload', () => {
   it('upload', async () => {
     ShipperServerFixture.createTestConfig();
+    shipperServer.loadConfig();
     const {file, stat} = ShipperServerFixture.getUploadFile();
     const {status, body} = await request(shipperServer.getServer())
       .post('/upload/dummy-project')
       .set('Authorization', 'dummy-token')
+      .field('postDeployCmd', 'ls')
       .attach('file', file);
     expect(status).toEqual(200);
-    expect(body).toEqual({message: 'Hello World!'});
+    expect(body.message).toEqual('Done!');
+    console.log(body.stdout);
   });
 });
 
 describe('createProject', () => {
+  beforeEach(() => {
+    ShipperServerFixture.removeConfig();
+    shipperServer.loadConfig();
+  });
   it('create project', async () => {
     const projectName = 'dummy-project';
     const projectsDir = SERVER_DIR_MOCK + '/projects';

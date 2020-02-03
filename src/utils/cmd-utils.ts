@@ -1,5 +1,6 @@
 import boxen, {BorderStyle} from 'boxen';
 import chalk from 'chalk';
+import {exec} from 'child_process';
 
 export const displayKeyValue = (obj: {[key: string]: string}) => {
   const boxenOptions = {
@@ -18,3 +19,16 @@ export const displayKeyValue = (obj: {[key: string]: string}) => {
   const msgBox = boxen(lines.join('\n'), boxenOptions);
   console.log(msgBox);
 };
+
+export const execCmd = (cmd: string) =>
+  new Promise((resolve, reject) => {
+    exec(cmd, (error, stdout, stderr) => {
+      if (error) {
+        return reject(error.message);
+      }
+      if (stderr) {
+        return reject(stderr);
+      }
+      resolve(stdout);
+    });
+  });

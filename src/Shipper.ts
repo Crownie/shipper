@@ -3,6 +3,7 @@ import {copyFolderRecursive} from './utils/copy';
 import {zipDirectory} from './utils/zip-utils';
 import axios from 'axios';
 import FormData from 'form-data';
+import ora from 'ora';
 
 export default class Shipper {
   private config: ShipperConfig = Shipper.getDefaultConfig();
@@ -52,13 +53,14 @@ export default class Shipper {
   }
 
   private async uploadTmp() {
-    // const spinner = ora('Uploading...').start();
+    const spinner = ora('Uploading...').start();
     const file = fs.createReadStream(this.tmpZipFile);
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('preDeployCmd', this.config.preDeployCmd || '');
+    formData.append('postDeployCmd', this.config.postDeployCmd || '');
     const url = `${this.config.host}/upload/${this.config.projectName}`;
-    console.log('url', url);
-    await axios.post(url, formData, {
+    const {data} = await axios.post(url, formData, {
       headers: {
         Authorization: this.config.token,
         ...formData.getHeaders(),
@@ -70,9 +72,10 @@ export default class Shipper {
         console.log(percentCompleted);
       },
     });
-    //spinner.stop();
+    spinner.stop();
     await Shipper.removeFolder(this.tmpFolder);
 
+    console.log(data.stdout);
     console.log('\n ✅  Deployed Successfully! 🎉');
   }
 
@@ -134,6 +137,7 @@ export default class Shipper {
       token: '',
       host: '',
       files: [],
+      preDeployCmd: '',
       postDeployCmd: '',
     };
   }
@@ -144,5 +148,6 @@ export interface ShipperConfig {
   token: string;
   host: string;
   files: string[];
+  preDeployCmd?: string;
   postDeployCmd?: string;
 }

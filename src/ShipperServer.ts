@@ -7,6 +7,9 @@ import asyncMiddleware from './utils/async-middleware';
 import bodyParser from 'body-parser';
 import {generateToken} from './utils/string-utils';
 import {homedir} from 'os';
+import {execCmd} from './utils/cmd-utils';
+
+const {exec} = require('child_process');
 
 export default class ShipperServer {
   private readonly server: Express;
@@ -52,10 +55,11 @@ export default class ShipperServer {
       this.authenticate.bind(this),
       upload.single('file'),
       asyncMiddleware(async (req: Request, res: Response) => {
+        const {preDeployCmd, postDeployCmd} = req.body || {};
         const {path = ''} = this.getProject(req.params.projectName) || {};
         await this.upload(req.file, path);
-        this.install(path);
-        return res.json({message: 'Hello World!'});
+        const stdout = await this.install(path, preDeployCmd, postDeployCmd);
+        return res.json({message: 'Done!', stdout});
       }),
     );
 
@@ -81,7 +85,15 @@ export default class ShipperServer {
     }
   }
 
-  public install(projectPath: string) {
+  public async install(
+    projectPath: string,
+    preDeployCmd: string,
+    postDeployCmd: string,
+  ) {
+    const currentPath = projectPath + '/current';
+    if (preDeployCmd) {
+      await execCmd(`cd ${currentPath} && ${preDeployCmd}`);
+    }
     try {
       fs.removeSync(projectPath + '/previous');
     } catch (e) {
@@ -89,15 +101,18 @@ export default class ShipperServer {
     }
     try {
       // backup current
-      fs.moveSync(projectPath + '/current', projectPath + '/previous');
+      fs.moveSync(currentPath, projectPath + '/previous');
     } catch (e) {
       console.log(e.message);
     }
-    try {
-      // install new
-      fs.moveSync(projectPath + '/tmp', projectPath + '/current');
-    } catch (e) {
-      console.log(e.message);
+    // install new
+    fs.moveSync(projectPath + '/tmp', currentPath);
+
+    // run command
+    if (postDeployCmd) {
+      const cmd = `cd ${currentPath} && ${postDeployCmd}`;
+      const stdout = await execCmd(cmd);
+      return cmd + '\n' + stdout;
     }
   }
 
@@ -139,7 +154,9 @@ export default class ShipperServer {
       this.config = {
         ...newConfig,
       };
-    } catch (e) {}
+    } catch (e) {
+      this.config = ShipperServer.getDefaultConfig();
+    }
   }
 
   public static getDefaultConfig(): ShipperServerConfig {
@@ -152,9 +169,13 @@ export default class ShipperServer {
     projectName: any,
     projectsPath = homedir() + '/shipper-projects',
   ) {
+    const path = projectsPath + '/' + projectName;
+    if (this.getProjectByPath(path)) {
+      throw new Error('the project already exists');
+    }
     const project = {
       name: projectName,
-      path: projectsPath + '/' + projectName,
+      path,
       token: generateToken(),
     };
     this.config.projects.push(project);
@@ -174,6 +195,10 @@ export default class ShipperServer {
 
   getProjects(): ShipperProject[] {
     return this.config.projects;
+  }
+
+  getProjectByPath(path) {
+    return this.config.projects.find((item) => item.path === path);
   }
 
   deleteProject(name: string) {
