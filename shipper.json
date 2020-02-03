@@ -1,0 +1,7 @@
+{
+  "projectName": "my-project",
+  "token": "kapmnhl11tqkxs1kooami",
+  "host": "http://localhost:3001",
+  "files": ["dist/*", "tests"],
+  "postDeployCmd": "ls -al"
+}
