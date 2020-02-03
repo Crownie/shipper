@@ -155,24 +155,16 @@ var __importDefault =
 Object.defineProperty(exports, '__esModule', {value: true});
 var fs_extra_1 = __importDefault(require('fs-extra'));
 var copy_1 = require('./utils/copy');
-var promise_utils_1 = require('./utils/promise-utils');
+var zip_utils_1 = require('./utils/zip-utils');
+var axios_1 = __importDefault(require('axios'));
+var form_data_1 = __importDefault(require('form-data'));
 var ora_1 = __importDefault(require('ora'));
-var Ssh_1 = __importDefault(require('./Ssh'));
-var RsyncHelper_1 = __importDefault(require('./RsyncHelper'));
 var Shipper = /** @class */ (function() {
-  function Shipper(configPath, ssh, rsyncHelper) {
+  function Shipper(configPath) {
     if (configPath === void 0) {
       configPath = process.cwd();
     }
-    if (ssh === void 0) {
-      ssh = new Ssh_1.default();
-    }
-    if (rsyncHelper === void 0) {
-      rsyncHelper = new RsyncHelper_1.default();
-    }
     this.configPath = configPath;
-    this.ssh = ssh;
-    this.rsyncHelper = rsyncHelper;
     this.config = Shipper.getDefaultConfig();
     this.configFile = configPath + '/shipper.json';
     this.loadConfig();
@@ -184,33 +176,9 @@ var Shipper = /** @class */ (function() {
     enumerable: true,
     configurable: true,
   });
-  Object.defineProperty(Shipper.prototype, 'remoteFolder', {
+  Object.defineProperty(Shipper.prototype, 'tmpZipFile', {
     get: function() {
-      return this.config.remoteRootFolder + '/' + this.config.projectName;
-    },
-    enumerable: true,
-    configurable: true,
-  });
-  Object.defineProperty(Shipper.prototype, 'remoteTmpFolder', {
-    get: function() {
-      return this.remoteFolder + '_tmp';
-    },
-    enumerable: true,
-    configurable: true,
-  });
-  Object.defineProperty(Shipper.prototype, 'remoteOldFolder', {
-    get: function() {
-      return this.remoteFolder + '_old';
-    },
-    enumerable: true,
-    configurable: true,
-  });
-  Object.defineProperty(Shipper.prototype, 'sshDestination', {
-    get: function() {
-      var _a = this.config.connection,
-        username = _a.username,
-        host = _a.host;
-      return username + '@' + host + ':' + this.remoteTmpFolder;
+      return this.configPath + '/.tmp.zip';
     },
     enumerable: true,
     configurable: true,
@@ -233,8 +201,17 @@ var Shipper = /** @class */ (function() {
             return [4 /*yield*/, this.copyToTmp()];
           case 1:
             _a.sent();
-            return [4 /*yield*/, this.uploadTmp()];
+            return [
+              4 /*yield*/,
+              zip_utils_1.zipDirectory(this.tmpFolder, this.tmpZipFile),
+            ];
           case 2:
+            _a.sent();
+            return [4 /*yield*/, this.uploadTmp()];
+          case 3:
+            _a.sent();
+            return [4 /*yield*/, this.removeZip()];
+          case 4:
             _a.sent();
             return [2 /*return*/];
         }
@@ -245,123 +222,48 @@ var Shipper = /** @class */ (function() {
     if (!this.config) {
       throw new Error('Config is required');
     }
-    if (!this.config.connection) {
-      throw new Error('config.connection is required');
+    if (!this.config.token) {
+      throw new Error('config.token is required');
     }
-    if (!this.config.connection.host) {
-      throw new Error('config.connection.host is required');
-    }
-    if (!this.config.connection.username) {
-      throw new Error('config.connection.username is required');
+    if (!this.config.projectName) {
+      throw new Error('config.projectName is required');
     }
   };
   Shipper.prototype.uploadTmp = function() {
     return __awaiter(this, void 0, void 0, function() {
-      var spinner,
-        removeOldCmd,
-        backupCmd,
-        installCmd,
-        cdInstallationDir,
-        _a,
-        stdout,
-        stderr;
-      return __generator(this, function(_b) {
-        switch (_b.label) {
+      var spinner, file, formData, url, data;
+      return __generator(this, function(_a) {
+        switch (_a.label) {
           case 0:
-            spinner = ora_1.default('Connecting to server via ssh').start();
-            // connect to ssh
-            return [4 /*yield*/, this.ssh.connect(this.config.connection)];
-          case 1:
-            // connect to ssh
-            _b.sent();
+            spinner = ora_1.default('Uploading...').start();
+            file = fs_extra_1.default.createReadStream(this.tmpZipFile);
+            formData = new form_data_1.default();
+            formData.append('file', file);
+            formData.append('preDeployCmd', this.config.preDeployCmd || '');
+            formData.append('postDeployCmd', this.config.postDeployCmd || '');
+            url = this.config.host + '/upload/' + this.config.projectName;
             return [
               4 /*yield*/,
-              this.ssh.execCommand(
-                'rm -rf ' +
-                  this.remoteTmpFolder +
-                  ' && mkdir -p ' +
-                  this.remoteTmpFolder,
-                {cwd: this.config.remoteRootFolder},
-              ),
-            ];
-          case 2:
-            _b.sent();
-            // upload contents of .tmp
-            spinner.text = 'Uploading files and folders';
-            return [
-              4 /*yield*/,
-              this.rsyncHelper
-                .start()
-                .shell('ssh')
-                .flags('avz')
-                .source(this.tmpFolder + '/')
-                .destination(this.sshDestination + '/')
-                .set('e', 'ssh -i ' + this.config.connection.privateKey)
-                .execute(),
-            ];
-          case 3:
-            _b.sent();
-            removeOldCmd = 'rm -rf ' + this.remoteOldFolder;
-            backupCmd = 'mv ' + this.remoteFolder + ' ' + this.remoteOldFolder;
-            installCmd = 'mv ' + this.remoteTmpFolder + ' ' + this.remoteFolder;
-            cdInstallationDir = 'cd ' + this.remoteFolder;
-            // remove previous backup
-            console.log('\n', removeOldCmd);
-            return [
-              4 /*yield*/,
-              this.ssh.execCommand(removeOldCmd, {
-                cwd: this.config.remoteRootFolder,
-              }),
-            ];
-          case 4:
-            _b.sent();
-            // create new backup
-            console.log('\n', backupCmd);
-            return [
-              4 /*yield*/,
-              this.ssh.execCommand(backupCmd, {
-                cwd: this.config.remoteRootFolder,
-              }),
-            ];
-          case 5:
-            _b.sent();
-            // install new
-            console.log('\n', installCmd);
-            return [
-              4 /*yield*/,
-              this.ssh.execCommand(installCmd, {
-                cwd: this.config.remoteRootFolder,
-              }),
-            ];
-          case 6:
-            _b.sent();
-            if (!this.config.postDeployCmd) return [3 /*break*/, 9];
-            spinner.text = 'Running post deploy commands:';
-            return [4 /*yield*/, promise_utils_1.delay(1000)];
-          case 7:
-            _b.sent();
-            spinner.stop();
-            console.log('\n', this.config.postDeployCmd);
-            return [
-              4 /*yield*/,
-              this.ssh.execCommand(
-                cdInstallationDir + ' && ' + this.config.postDeployCmd,
-                {
-                  cwd: this.config.remoteRootFolder,
+              axios_1.default.post(url, formData, {
+                headers: __assign(
+                  {Authorization: this.config.token},
+                  formData.getHeaders(),
+                ),
+                onUploadProgress: function(progressEvent) {
+                  var percentCompleted = Math.round(
+                    (progressEvent.loaded * 100) / progressEvent.total,
+                  );
+                  console.log(percentCompleted);
                 },
-              ),
+              }),
             ];
-          case 8:
-            (_a = _b.sent()), (stdout = _a.stdout), (stderr = _a.stderr);
-            console.log('\x1b[34m%s\x1b[0m', stdout);
-            console.log('\x1b[31m%s\x1b[0m', stderr);
-            _b.label = 9;
-          case 9:
+          case 1:
+            data = _a.sent().data;
+            spinner.stop();
             return [4 /*yield*/, Shipper.removeFolder(this.tmpFolder)];
-          case 10:
-            _b.sent();
-            // close connection
-            this.ssh.dispose();
+          case 2:
+            _a.sent();
+            console.log(data.stdout);
             console.log('\n ✅  Deployed Successfully! 🎉');
             return [2 /*return*/];
         }
@@ -382,6 +284,11 @@ var Shipper = /** @class */ (function() {
           case 1:
             _b.sent();
             fs_extra_1.default.mkdirSync(this.tmpFolder);
+            if (this.config.files.length === 0) {
+              throw new Error(
+                'no files or folders specified. See shipper.json',
+              );
+            }
             (_i = 0), (_a = this.config.files);
             _b.label = 2;
           case 2:
@@ -433,6 +340,30 @@ var Shipper = /** @class */ (function() {
       });
     });
   };
+  Shipper.prototype.removeZip = function() {
+    return __awaiter(this, void 0, void 0, function() {
+      var err_2;
+      return __generator(this, function(_a) {
+        switch (_a.label) {
+          case 0:
+            _a.trys.push([0, 2, , 3]);
+            return [
+              4 /*yield*/,
+              fs_extra_1.default.unlinkSync(this.tmpZipFile),
+            ];
+          case 1:
+            _a.sent();
+            return [3 /*break*/, 3];
+          case 2:
+            err_2 = _a.sent();
+            console.error(err_2);
+            return [3 /*break*/, 3];
+          case 3:
+            return [2 /*return*/];
+        }
+      });
+    });
+  };
   Shipper.prototype.loadConfig = function() {
     try {
       var data = fs_extra_1.default.readFileSync(this.configFile);
@@ -445,14 +376,11 @@ var Shipper = /** @class */ (function() {
   Shipper.getDefaultConfig = function() {
     return {
       projectName: '',
-      remoteRootFolder: '',
+      token: '',
+      host: '',
       files: [],
-      connection: {
-        host: 'localhost',
-        username: 'sammy',
-        port: 22,
-        privateKey: '~/.ssh/id_rsa',
-      },
+      preDeployCmd: '',
+      postDeployCmd: '',
     };
   };
   return Shipper;

@@ -138,39 +138,42 @@ var __importDefault =
     return mod && mod.__esModule ? mod : {default: mod};
   };
 Object.defineProperty(exports, '__esModule', {value: true});
-var node_ssh_1 = __importDefault(require('node-ssh'));
-var Ssh = /** @class */ (function() {
-  function Ssh() {
-    this.nodeSsh = new node_ssh_1.default();
-  }
-  Ssh.prototype.connect = function(connectionParams) {
-    return __awaiter(this, void 0, void 0, function() {
-      return __generator(this, function(_a) {
-        switch (_a.label) {
-          case 0:
-            return [4 /*yield*/, this.nodeSsh.connect(connectionParams)];
-          case 1:
-            _a.sent();
-            return [2 /*return*/, this];
-        }
-      });
+var fs_1 = __importDefault(require('fs'));
+var archiver_1 = __importDefault(require('archiver'));
+var unzipper_1 = __importDefault(require('unzipper'));
+/**
+ * @param {String} source folder path
+ * @param {String} destination file path
+ * @returns {Promise}
+ */
+function zipDirectory(source, destination) {
+  var archive = archiver_1.default('zip', {zlib: {level: 9}});
+  var stream = fs_1.default.createWriteStream(destination);
+  return new Promise(function(resolve, reject) {
+    archive
+      .directory(source, false)
+      .on('error', function(err) {
+        return reject(err);
+      })
+      .pipe(stream);
+    stream.on('close', function() {
+      return resolve();
     });
-  };
-  Ssh.prototype.execCommand = function(command, opts) {
-    return __awaiter(this, void 0, void 0, function() {
-      return __generator(this, function(_a) {
-        switch (_a.label) {
-          case 0:
-            return [4 /*yield*/, this.nodeSsh.execCommand(command, opts)];
-          case 1:
-            return [2 /*return*/, _a.sent()];
-        }
-      });
+    archive.finalize().then();
+  });
+}
+exports.zipDirectory = zipDirectory;
+function unzipFile(filePath, destination) {
+  return __awaiter(this, void 0, void 0, function() {
+    return __generator(this, function(_a) {
+      return [
+        2 /*return*/,
+        fs_1.default
+          .createReadStream(filePath)
+          .pipe(unzipper_1.default.Extract({path: destination, concurrency: 1}))
+          .promise(),
+      ];
     });
-  };
-  Ssh.prototype.dispose = function() {
-    this.nodeSsh.dispose();
-  };
-  return Ssh;
-})();
-exports.default = Ssh;
+  });
+}
+exports.unzipFile = unzipFile;
