@@ -163,7 +163,6 @@ var body_parser_1 = __importDefault(require('body-parser'));
 var string_utils_1 = require('./utils/string-utils');
 var os_1 = require('os');
 var cmd_utils_1 = require('./utils/cmd-utils');
-var exec = require('child_process').exec;
 var ShipperServer = /** @class */ (function() {
   function ShipperServer(configPath) {
     if (configPath === void 0) {
@@ -242,26 +241,25 @@ var ShipperServer = /** @class */ (function() {
   };
   ShipperServer.prototype.upload = function(file, projectPath) {
     return __awaiter(this, void 0, void 0, function() {
-      var e_1;
+      var zipFilePath, e_1;
       return __generator(this, function(_a) {
         switch (_a.label) {
           case 0:
+            zipFilePath = projectPath + '_tmp.zip';
             // get project settings by id and token
             try {
-              fs_extra_1.default.unlinkSync(projectPath + '/tmp.zip');
+              // remove old zip
+              fs_extra_1.default.unlinkSync(zipFilePath);
             } catch (e) {
               console.log(e.message);
             }
-            fs_extra_1.default.moveSync(file.path, projectPath + '/tmp.zip');
+            fs_extra_1.default.moveSync(file.path, zipFilePath);
             _a.label = 1;
           case 1:
             _a.trys.push([1, 3, , 4]);
             return [
               4 /*yield*/,
-              zip_utils_1.unzipFile(
-                projectPath + '/tmp.zip',
-                projectPath + '/tmp',
-              ),
+              zip_utils_1.unzipFile(zipFilePath, projectPath + '_tmp'),
             ];
           case 2:
             _a.sent();
@@ -271,6 +269,9 @@ var ShipperServer = /** @class */ (function() {
             console.log(e_1.message);
             return [3 /*break*/, 4];
           case 4:
+            try {
+              fs_extra_1.default.unlinkSync(zipFilePath);
+            } catch (e) {}
             return [2 /*return*/];
         }
       });
@@ -282,43 +283,42 @@ var ShipperServer = /** @class */ (function() {
     postDeployCmd,
   ) {
     return __awaiter(this, void 0, void 0, function() {
-      var currentPath, cmd, stdout;
+      var e_2, cmd, stdout;
       return __generator(this, function(_a) {
         switch (_a.label) {
           case 0:
-            currentPath = projectPath + '/current';
-            if (!preDeployCmd) return [3 /*break*/, 2];
+            if (!(preDeployCmd && fs_extra_1.default.existsSync(projectPath)))
+              return [3 /*break*/, 4];
+            _a.label = 1;
+          case 1:
+            _a.trys.push([1, 3, , 4]);
             return [
               4 /*yield*/,
-              cmd_utils_1.execCmd('cd ' + currentPath + ' && ' + preDeployCmd),
+              cmd_utils_1.execCmd('cd ' + projectPath + ' && ' + preDeployCmd),
             ];
-          case 1:
-            _a.sent();
-            _a.label = 2;
           case 2:
+            _a.sent();
+            return [3 /*break*/, 4];
+          case 3:
+            e_2 = _a.sent();
+            console.log(e_2.message);
+            return [3 /*break*/, 4];
+          case 4:
             try {
-              fs_extra_1.default.removeSync(projectPath + '/previous');
-            } catch (e) {
-              console.log(e.message);
-            }
-            try {
-              // backup current
-              fs_extra_1.default.moveSync(
-                currentPath,
-                projectPath + '/previous',
-              );
+              // delete old
+              fs_extra_1.default.removeSync(projectPath);
             } catch (e) {
               console.log(e.message);
             }
             // install new
-            fs_extra_1.default.moveSync(projectPath + '/tmp', currentPath);
-            if (!postDeployCmd) return [3 /*break*/, 4];
-            cmd = 'cd ' + currentPath + ' && ' + postDeployCmd;
+            fs_extra_1.default.moveSync(projectPath + '_tmp', projectPath);
+            if (!postDeployCmd) return [3 /*break*/, 6];
+            cmd = 'cd ' + projectPath + ' && ' + postDeployCmd;
             return [4 /*yield*/, cmd_utils_1.execCmd(cmd)];
-          case 3:
+          case 5:
             stdout = _a.sent();
             return [2 /*return*/, cmd + '\n' + stdout];
-          case 4:
+          case 6:
             return [2 /*return*/];
         }
       });
