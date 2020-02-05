@@ -11,7 +11,7 @@
     "server": "ts-node src/bin/index.ts start",
     "dev": "ts-node src/bin/index.ts deploy",
     "prettier": "prettier --write \"*(src|tests)/**/*.*(ts|tsx)\"",
-    "test": "jest"
+    "test": "jest --runInBand"
   },
   "keywords": [],
   "author": "crownie",

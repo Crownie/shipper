@@ -9,8 +9,6 @@ import {generateToken} from './utils/string-utils';
 import {homedir} from 'os';
 import {execCmd} from './utils/cmd-utils';
 
-const {exec} = require('child_process');
-
 export default class ShipperServer {
   private readonly server: Express;
   private readonly configFile: string;
@@ -71,18 +69,24 @@ export default class ShipperServer {
   }
 
   public async upload(file: Express.Multer.File, projectPath: string) {
+    const zipFilePath = projectPath + '_tmp.zip';
     // get project settings by id and token
     try {
-      fs.unlinkSync(projectPath + '/tmp.zip');
+      // remove old zip
+      fs.unlinkSync(zipFilePath);
     } catch (e) {
       console.log(e.message);
     }
-    fs.moveSync(file.path, projectPath + '/tmp.zip');
+    fs.moveSync(file.path, zipFilePath);
     try {
-      await unzipFile(projectPath + '/tmp.zip', projectPath + '/tmp');
+      await unzipFile(zipFilePath, projectPath + '_tmp');
     } catch (e) {
       console.log(e.message);
     }
+
+    try {
+      fs.unlinkSync(zipFilePath);
+    } catch (e) {}
   }
 
   public async install(
@@ -90,27 +94,26 @@ export default class ShipperServer {
     preDeployCmd: string,
     postDeployCmd: string,
   ) {
-    const currentPath = projectPath + '/current';
-    if (preDeployCmd) {
-      await execCmd(`cd ${currentPath} && ${preDeployCmd}`);
+    if (preDeployCmd && fs.existsSync(projectPath)) {
+      try {
+        await execCmd(`cd ${projectPath} && ${preDeployCmd}`);
+      } catch (e) {
+        console.log(e.message);
+      }
     }
     try {
-      fs.removeSync(projectPath + '/previous');
+      // delete old
+      fs.removeSync(projectPath);
     } catch (e) {
       console.log(e.message);
     }
-    try {
-      // backup current
-      fs.moveSync(currentPath, projectPath + '/previous');
-    } catch (e) {
-      console.log(e.message);
-    }
+
     // install new
-    fs.moveSync(projectPath + '/tmp', currentPath);
+    fs.moveSync(projectPath + '_tmp', projectPath);
 
     // run command
     if (postDeployCmd) {
-      const cmd = `cd ${currentPath} && ${postDeployCmd}`;
+      const cmd = `cd ${projectPath} && ${postDeployCmd}`;
       const stdout = await execCmd(cmd);
       return cmd + '\n' + stdout;
     }
