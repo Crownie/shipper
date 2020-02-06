@@ -7,7 +7,7 @@ const shipperServer = new ShipperServer(SERVER_DIR_MOCK);
 
 describe('ping', () => {
   it('pings server', async () => {
-    const {status, body} = await request(shipperServer.getServer())
+    const {status, body} = await request(shipperServer.getExpressApp())
       .get('/ping')
       .send();
     expect(status).toEqual(200);
@@ -20,7 +20,7 @@ describe('upload', () => {
     ShipperServerFixture.createTestConfig();
     shipperServer.loadConfig();
     const {file, stat} = ShipperServerFixture.getUploadFile();
-    const {status, body} = await request(shipperServer.getServer())
+    const {status, body} = await request(shipperServer.getExpressApp())
       .post('/upload/dummy-project')
       .set('Authorization', 'dummy-token')
       .field('postDeployCmd', 'ls')
