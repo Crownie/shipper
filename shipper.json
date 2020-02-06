@@ -1,7 +1,8 @@
 {
   "projectName": "my-project",
   "token": "kapmnhl11tqkxs1kooami",
-  "host": "http://localhost:3001",
+  "host": "http://localhost:4040",
   "files": ["dist/*", "tests"],
+  "preDeployCmd": "ls",
   "postDeployCmd": "ls -al"
 }
