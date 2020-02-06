@@ -4,6 +4,7 @@ import {zipDirectory} from './utils/zip-utils';
 import axios from 'axios';
 import FormData from 'form-data';
 import ora from 'ora';
+import io from 'socket.io-client';
 
 export default class Shipper {
   private config: ShipperConfig = Shipper.getDefaultConfig();
@@ -60,23 +61,36 @@ export default class Shipper {
     formData.append('preDeployCmd', this.config.preDeployCmd || '');
     formData.append('postDeployCmd', this.config.postDeployCmd || '');
     const url = `${this.config.host}/upload/${this.config.projectName}`;
-    const {data} = await axios.post(url, formData, {
-      headers: {
-        Authorization: this.config.token,
-        ...formData.getHeaders(),
-      },
-      onUploadProgress: (progressEvent) => {
-        const percentCompleted = Math.round(
-          (progressEvent.loaded * 100) / progressEvent.total,
-        );
-        console.log(percentCompleted);
-      },
-    });
-    spinner.stop();
-    await Shipper.removeFolder(this.tmpFolder);
 
-    console.log(data.stdout);
-    console.log('\n ✅  Deployed Successfully! 🎉');
+    try {
+      const socket = io.connect(this.config.host, {
+        query: {projectName: this.config.projectName},
+      });
+      // report status during deployment
+      socket.on('data', ({stdout}) => {
+        spinner.stop();
+        console.log(stdout);
+      });
+
+      await axios.post(url, formData, {
+        headers: {
+          Authorization: this.config.token,
+          ...formData.getHeaders(),
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total,
+          );
+          console.log(percentCompleted);
+        },
+      });
+      console.log('\n ✅  Deployed Successfully! 🎉');
+    } catch (e) {
+      spinner.stop();
+      await Shipper.removeFolder(this.tmpFolder);
+      console.log(e.response);
+      console.log(e.response?.data);
+    }
   }
 
   /**
