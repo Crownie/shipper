@@ -1,6 +1,6 @@
 import boxen, {BorderStyle} from 'boxen';
 import chalk from 'chalk';
-import {exec} from 'child_process';
+import {exec, spawn} from 'child_process';
 
 export const displayKeyValue = (obj: {[key: string]: string}) => {
   const boxenOptions = {
@@ -32,3 +32,28 @@ export const execCmd = (cmd: string) =>
       resolve(stdout);
     });
   });
+
+type OnData = (data: string) => void;
+
+interface SpawnOptions {
+  cwd?: string;
+}
+
+export const spawnCmd = (
+  cmd: string,
+  onData: OnData,
+  opt: SpawnOptions = {},
+) => {
+  return new Promise((resolve, reject) => {
+    const terminal = spawn(cmd, [], {shell: true, ...opt});
+    terminal.stdout.on('data', (data) => onData(data.toString()));
+    terminal.stderr.on('data', (data) => onData(data.toString()));
+    terminal.on('close', (code) => {
+      if (code > 0) {
+        reject(`child process exited with code ${code}`);
+        return;
+      }
+      resolve(`child process exited with code ${code}`);
+    });
+  });
+};
