@@ -144,7 +144,7 @@ export default class ShipperServer {
     return this.server;
   }
 
-  public start(port: number = 3001) {
+  public start(port: number = 4040) {
     this.server.listen(port, () => {
       console.log(`Shipper Server listening on port: ${port}`);
     });
