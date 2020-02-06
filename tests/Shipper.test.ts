@@ -29,6 +29,12 @@ beforeEach(() => {
   clearServerFolder();
 });
 
+afterAll(() => {
+  try {
+    fs.unlinkSync(shipperJson);
+  } catch (e) {}
+});
+
 describe('init', () => {
   it('initialise fresh project', () => {
     try {

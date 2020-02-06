@@ -1,8 +1,0 @@
-{
-  "projectName": "dummy-project",
-  "token": "vuxjknnt2mr5keesgus6",
-  "host": "http://localhost",
-  "files": [".dist", "dummy2.js"],
-  "preDeployCmd": "",
-  "postDeployCmd": "ls -al"
-}
