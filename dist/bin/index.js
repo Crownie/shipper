@@ -53,7 +53,7 @@ var argv = yargs
       yargs.positional('port', {
         describe: 'port',
         type: 'string',
-        default: 3001,
+        default: 4040,
       });
     },
     CmdHandlers_1.default.start,

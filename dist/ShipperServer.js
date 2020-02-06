@@ -163,6 +163,8 @@ var body_parser_1 = __importDefault(require('body-parser'));
 var string_utils_1 = require('./utils/string-utils');
 var os_1 = require('os');
 var cmd_utils_1 = require('./utils/cmd-utils');
+var http_1 = __importDefault(require('http'));
+var socket_io_1 = __importDefault(require('socket.io'));
 var ShipperServer = /** @class */ (function() {
   function ShipperServer(configPath) {
     if (configPath === void 0) {
@@ -170,11 +172,15 @@ var ShipperServer = /** @class */ (function() {
     }
     this.configPath = configPath;
     this.config = ShipperServer.getDefaultConfig();
-    this.server = express_1.default();
+    this.sockets = {};
+    this.expressApp = express_1.default();
+    this.server = new http_1.default.Server(this.expressApp);
+    this.io = socket_io_1.default(this.server);
     this.defineRoutes();
     this.configFile = configPath + '/shipper-server.json';
     this.init();
     this.loadConfig();
+    this.setupSocket();
   }
   ShipperServer.prototype.init = function() {
     try {
@@ -186,6 +192,25 @@ var ShipperServer = /** @class */ (function() {
     try {
       fs_extra_1.default.writeFileSync(this.configFile, data, {flag: 'wx'});
     } catch (e) {}
+  };
+  ShipperServer.prototype.setupSocket = function() {
+    var _this = this;
+    this.io.on('connection', function(socket) {
+      _this.sockets[socket.id] = socket;
+      socket.on('disconnect', function() {
+        delete _this.sockets[socket.id];
+      });
+    });
+  };
+  ShipperServer.prototype.getProjectSocket = function(projectName) {
+    for (var _i = 0, _a = Object.keys(this.sockets); _i < _a.length; _i++) {
+      var id = _a[_i];
+      var socket = this.sockets[id];
+      if (socket && socket.handshake.query.projectName === projectName) {
+        return socket;
+      }
+    }
+    return null;
   };
   ShipperServer.prototype.defineRoutes = function() {
     var _this = this;
@@ -199,9 +224,9 @@ var ShipperServer = /** @class */ (function() {
       },
     });
     var upload = multer_1.default({storage: storage});
-    this.server.use(body_parser_1.default.urlencoded({extended: true}));
-    this.server.use(body_parser_1.default.json());
-    this.server.post(
+    this.expressApp.use(body_parser_1.default.urlencoded({extended: true}));
+    this.expressApp.use(body_parser_1.default.json());
+    this.expressApp.post(
       '/upload/:projectName',
       this.authenticate.bind(this),
       upload.single('file'),
@@ -221,7 +246,12 @@ var ShipperServer = /** @class */ (function() {
                 _c.sent();
                 return [
                   4 /*yield*/,
-                  this.install(path, preDeployCmd, postDeployCmd),
+                  this.install(
+                    path,
+                    preDeployCmd,
+                    postDeployCmd,
+                    req.params.projectName,
+                  ),
                 ];
               case 2:
                 stdout = _c.sent();
@@ -234,10 +264,10 @@ var ShipperServer = /** @class */ (function() {
         });
       }),
     );
-    this.server.get('/ping', function(req, res) {
+    this.expressApp.get('/ping', function(req, res) {
       return res.json({message: 'Hello World!'});
     });
-    this.server.use(error_handler_1.default);
+    this.expressApp.use(error_handler_1.default);
   };
   ShipperServer.prototype.upload = function(file, projectPath) {
     return __awaiter(this, void 0, void 0, function() {
@@ -281,26 +311,41 @@ var ShipperServer = /** @class */ (function() {
     projectPath,
     preDeployCmd,
     postDeployCmd,
+    projectName,
   ) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function() {
-      var e_2, cmd, stdout;
-      return __generator(this, function(_a) {
-        switch (_a.label) {
+      var socket, e_2;
+      return __generator(this, function(_c) {
+        switch (_c.label) {
           case 0:
+            socket = this.getProjectSocket(projectName);
             if (!(preDeployCmd && fs_extra_1.default.existsSync(projectPath)))
               return [3 /*break*/, 4];
-            _a.label = 1;
+            _c.label = 1;
           case 1:
-            _a.trys.push([1, 3, , 4]);
+            _c.trys.push([1, 3, , 4]);
+            (_a = socket) === null || _a === void 0
+              ? void 0
+              : _a.emit('data', {stdout: '> ' + preDeployCmd + '\n'});
             return [
               4 /*yield*/,
-              cmd_utils_1.execCmd('cd ' + projectPath + ' && ' + preDeployCmd),
+              cmd_utils_1.spawnCmd(
+                preDeployCmd,
+                function(stdout) {
+                  var _a;
+                  (_a = socket) === null || _a === void 0
+                    ? void 0
+                    : _a.emit('data', {stdout: stdout});
+                },
+                {cwd: projectPath},
+              ),
             ];
           case 2:
-            _a.sent();
+            _c.sent();
             return [3 /*break*/, 4];
           case 3:
-            e_2 = _a.sent();
+            e_2 = _c.sent();
             console.log(e_2.message);
             return [3 /*break*/, 4];
           case 4:
@@ -313,11 +358,25 @@ var ShipperServer = /** @class */ (function() {
             // install new
             fs_extra_1.default.moveSync(projectPath + '_tmp', projectPath);
             if (!postDeployCmd) return [3 /*break*/, 6];
-            cmd = 'cd ' + projectPath + ' && ' + postDeployCmd;
-            return [4 /*yield*/, cmd_utils_1.execCmd(cmd)];
+            (_b = socket) === null || _b === void 0
+              ? void 0
+              : _b.emit('data', {stdout: '> ' + postDeployCmd + '\n'});
+            return [
+              4 /*yield*/,
+              cmd_utils_1.spawnCmd(
+                postDeployCmd,
+                function(stdout) {
+                  var _a;
+                  (_a = socket) === null || _a === void 0
+                    ? void 0
+                    : _a.emit('data', {stdout: stdout});
+                },
+                {cwd: projectPath},
+              ),
+            ];
           case 5:
-            stdout = _a.sent();
-            return [2 /*return*/, cmd + '\n' + stdout];
+            _c.sent();
+            _c.label = 6;
           case 6:
             return [2 /*return*/];
         }
@@ -356,12 +415,12 @@ var ShipperServer = /** @class */ (function() {
       return project.name === projectName;
     });
   };
-  ShipperServer.prototype.getServer = function() {
-    return this.server;
+  ShipperServer.prototype.getExpressApp = function() {
+    return this.expressApp;
   };
   ShipperServer.prototype.start = function(port) {
     if (port === void 0) {
-      port = 3001;
+      port = 4040;
     }
     this.server.listen(port, function() {
       console.log('Shipper Server listening on port: ' + port);

@@ -159,6 +159,7 @@ var zip_utils_1 = require('./utils/zip-utils');
 var axios_1 = __importDefault(require('axios'));
 var form_data_1 = __importDefault(require('form-data'));
 var ora_1 = __importDefault(require('ora'));
+var socket_io_client_1 = __importDefault(require('socket.io-client'));
 var Shipper = /** @class */ (function() {
   function Shipper(configPath) {
     if (configPath === void 0) {
@@ -230,10 +231,11 @@ var Shipper = /** @class */ (function() {
     }
   };
   Shipper.prototype.uploadTmp = function() {
+    var _a;
     return __awaiter(this, void 0, void 0, function() {
-      var spinner, file, formData, url, data;
-      return __generator(this, function(_a) {
-        switch (_a.label) {
+      var spinner, file, formData, url, socket, e_1;
+      return __generator(this, function(_b) {
+        switch (_b.label) {
           case 0:
             spinner = ora_1.default('Uploading...').start();
             file = fs_extra_1.default.createReadStream(this.tmpZipFile);
@@ -242,6 +244,18 @@ var Shipper = /** @class */ (function() {
             formData.append('preDeployCmd', this.config.preDeployCmd || '');
             formData.append('postDeployCmd', this.config.postDeployCmd || '');
             url = this.config.host + '/upload/' + this.config.projectName;
+            _b.label = 1;
+          case 1:
+            _b.trys.push([1, 3, , 5]);
+            socket = socket_io_client_1.default.connect(this.config.host, {
+              query: {projectName: this.config.projectName},
+            });
+            // report status during deployment
+            socket.on('data', function(_a) {
+              var stdout = _a.stdout;
+              spinner.stop();
+              console.log(stdout);
+            });
             return [
               4 /*yield*/,
               axios_1.default.post(url, formData, {
@@ -257,14 +271,27 @@ var Shipper = /** @class */ (function() {
                 },
               }),
             ];
-          case 1:
-            data = _a.sent().data;
+          case 2:
+            _b.sent();
+            try {
+              socket.disconnect();
+            } catch (e) {}
+            console.log('\n ✅  Deployed Successfully! 🎉');
+            return [3 /*break*/, 5];
+          case 3:
+            e_1 = _b.sent();
             spinner.stop();
             return [4 /*yield*/, Shipper.removeFolder(this.tmpFolder)];
-          case 2:
-            _a.sent();
-            console.log(data.stdout);
-            console.log('\n ✅  Deployed Successfully! 🎉');
+          case 4:
+            _b.sent();
+            console.log(e_1.message);
+            console.log(
+              'response.data: ',
+              (_a = e_1.response) === null || _a === void 0 ? void 0 : _a.data,
+            );
+            return [3 /*break*/, 5];
+          case 5:
+            spinner.stop();
             return [2 /*return*/];
         }
       });
@@ -275,7 +302,7 @@ var Shipper = /** @class */ (function() {
    */
   Shipper.prototype.copyToTmp = function() {
     return __awaiter(this, void 0, void 0, function() {
-      var _i, _a, path, e_1;
+      var _i, _a, path, e_2;
       return __generator(this, function(_b) {
         switch (_b.label) {
           case 0:
@@ -308,8 +335,8 @@ var Shipper = /** @class */ (function() {
             _b.sent();
             return [3 /*break*/, 6];
           case 5:
-            e_1 = _b.sent();
-            throw e_1;
+            e_2 = _b.sent();
+            throw e_2;
           case 6:
             _i++;
             return [3 /*break*/, 2];
