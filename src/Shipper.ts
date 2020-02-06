@@ -92,8 +92,8 @@ export default class Shipper {
     } catch (e) {
       spinner.stop();
       await Shipper.removeFolder(this.tmpFolder);
-      console.log(e.response);
-      console.log(e.response?.data);
+      console.log(e.message);
+      console.log('response.data: ', e.response?.data);
     }
     spinner.stop();
   }
