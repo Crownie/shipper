@@ -131,6 +131,7 @@ export default class ShipperServer {
     const socket = this.getProjectSocket(projectName);
     if (preDeployCmd && fs.existsSync(projectPath)) {
       try {
+        socket?.emit('data', {stdout: `> ${preDeployCmd}\n`});
         await spawnCmd(
           preDeployCmd,
           (stdout) => {
@@ -154,7 +155,7 @@ export default class ShipperServer {
 
     // run command
     if (postDeployCmd) {
-      socket?.emit('data', {stdout: postDeployCmd + '\n'});
+      socket?.emit('data', {stdout: `> ${postDeployCmd}\n`});
       await spawnCmd(
         postDeployCmd,
         (stdout) => {
