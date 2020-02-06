@@ -84,6 +84,10 @@ export default class Shipper {
           console.log(percentCompleted);
         },
       });
+
+      try {
+        socket.disconnect();
+      } catch (e) {}
       console.log('\n ✅  Deployed Successfully! 🎉');
     } catch (e) {
       spinner.stop();
@@ -91,6 +95,7 @@ export default class Shipper {
       console.log(e.response);
       console.log(e.response?.data);
     }
+    spinner.stop();
   }
 
   /**
