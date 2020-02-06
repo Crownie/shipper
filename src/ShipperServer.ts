@@ -7,19 +7,27 @@ import asyncMiddleware from './utils/async-middleware';
 import bodyParser from 'body-parser';
 import {generateToken} from './utils/string-utils';
 import {homedir} from 'os';
-import {execCmd} from './utils/cmd-utils';
+import {execCmd, spawnCmd} from './utils/cmd-utils';
+import http from 'http';
+import socketIo, {Server, Socket} from 'socket.io';
 
 export default class ShipperServer {
-  private readonly server: Express;
+  private readonly expressApp: Express;
   private readonly configFile: string;
   private config: ShipperServerConfig = ShipperServer.getDefaultConfig();
+  private io: Server;
+  private readonly server: http.Server;
+  private sockets: {[key: string]: Socket} = {};
 
   constructor(private configPath = '/usr/local/etc/shipper') {
-    this.server = express();
+    this.expressApp = express();
+    this.server = new http.Server(this.expressApp);
+    this.io = socketIo(this.server);
     this.defineRoutes();
     this.configFile = configPath + '/shipper-server.json';
     this.init();
     this.loadConfig();
+    this.setupSocket();
   }
 
   init() {
@@ -34,6 +42,25 @@ export default class ShipperServer {
     } catch (e) {}
   }
 
+  private setupSocket() {
+    this.io.on('connection', (socket) => {
+      this.sockets[socket.id] = socket;
+      socket.on('disconnect', () => {
+        delete this.sockets[socket.id];
+      });
+    });
+  }
+
+  private getProjectSocket(projectName): Socket | null {
+    for (let id of Object.keys(this.sockets)) {
+      const socket = this.sockets[id];
+      if (socket && socket.handshake.query.projectName === projectName) {
+        return socket;
+      }
+    }
+    return null;
+  }
+
   protected defineRoutes() {
     const storage = multer.diskStorage({
       destination: function(req, file, cb) {
@@ -46,26 +73,32 @@ export default class ShipperServer {
     });
     const upload = multer({storage});
 
-    this.server.use(bodyParser.urlencoded({extended: true}));
-    this.server.use(bodyParser.json());
-    this.server.post(
+    this.expressApp.use(bodyParser.urlencoded({extended: true}));
+    this.expressApp.use(bodyParser.json());
+    this.expressApp.post(
       '/upload/:projectName',
       this.authenticate.bind(this),
       upload.single('file'),
       asyncMiddleware(async (req: Request, res: Response) => {
         const {preDeployCmd, postDeployCmd} = req.body || {};
         const {path = ''} = this.getProject(req.params.projectName) || {};
+
         await this.upload(req.file, path);
-        const stdout = await this.install(path, preDeployCmd, postDeployCmd);
+        const stdout = await this.install(
+          path,
+          preDeployCmd,
+          postDeployCmd,
+          req.params.projectName,
+        );
         return res.json({message: 'Done!', stdout});
       }),
     );
 
-    this.server.get('/ping', (req, res: Response) => {
+    this.expressApp.get('/ping', (req, res: Response) => {
       return res.json({message: 'Hello World!'});
     });
 
-    this.server.use(errorHandler);
+    this.expressApp.use(errorHandler);
   }
 
   public async upload(file: Express.Multer.File, projectPath: string) {
@@ -93,10 +126,18 @@ export default class ShipperServer {
     projectPath: string,
     preDeployCmd: string,
     postDeployCmd: string,
+    projectName: string,
   ) {
+    const socket = this.getProjectSocket(projectName);
     if (preDeployCmd && fs.existsSync(projectPath)) {
       try {
-        await execCmd(`cd ${projectPath} && ${preDeployCmd}`);
+        await spawnCmd(
+          preDeployCmd,
+          (stdout) => {
+            socket?.emit('data', {stdout});
+          },
+          {cwd: projectPath},
+        );
       } catch (e) {
         console.log(e.message);
       }
@@ -113,9 +154,14 @@ export default class ShipperServer {
 
     // run command
     if (postDeployCmd) {
-      const cmd = `cd ${projectPath} && ${postDeployCmd}`;
-      const stdout = await execCmd(cmd);
-      return cmd + '\n' + stdout;
+      socket?.emit('data', {stdout: postDeployCmd + '\n'});
+      await spawnCmd(
+        postDeployCmd,
+        (stdout) => {
+          socket?.emit('data', {stdout});
+        },
+        {cwd: projectPath},
+      );
     }
   }
 
@@ -140,8 +186,8 @@ export default class ShipperServer {
     return this.config.projects.find((project) => project.name === projectName);
   }
 
-  public getServer(): Express {
-    return this.server;
+  public getExpressApp(): Express {
+    return this.expressApp;
   }
 
   public start(port: number = 4040) {
