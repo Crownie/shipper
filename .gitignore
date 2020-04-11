@@ -2,7 +2,7 @@
 node_modules
 .tmp
 tests/__server-dir-mock__
-
+dist
 # OS generated files #
 ######################
 .DS_Store
