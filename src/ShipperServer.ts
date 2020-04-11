@@ -171,6 +171,7 @@ export default class ShipperServer {
     res: Response,
     next: NextFunction,
   ) {
+    this.loadConfig(); // load latest changes from shipper-server.json
     const {authorization} = req.headers;
     const {projectName} = req.params;
     const {name, token, path} = this.getProject(projectName) || {};
